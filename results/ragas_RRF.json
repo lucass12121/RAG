@@ -1,0 +1,8 @@
+{
+  "name": "RRF",
+  "n_queries": 50,
+  "top_k": 10,
+  "context_precision": 0.9112244834844121,
+  "context_recall": 0.9633333333333334,
+  "time": "150.8s"
+}

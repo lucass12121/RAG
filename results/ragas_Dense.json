@@ -1,0 +1,8 @@
+{
+  "name": "Dense",
+  "n_queries": 50,
+  "top_k": 10,
+  "context_precision": 0.9150409737861582,
+  "context_recall": 0.96,
+  "time": "216.7s"
+}

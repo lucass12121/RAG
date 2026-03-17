@@ -1,0 +1,11 @@
+{
+  "name": "Dense_bge-large-zh-v1.5",
+  "method": "Dense",
+  "model": "BAAI/bge-large-zh-v1.5",
+  "reranker": "",
+  "n_queries": 519,
+  "top_k": 10,
+  "context_precision": 0.9641088826209991,
+  "context_recall": 0.9319072180774308,
+  "time": "815.4s"
+}

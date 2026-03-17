@@ -1,0 +1,8 @@
+{
+  "name": "BM25",
+  "n_queries": 50,
+  "top_k": 10,
+  "context_precision": 0.8742148840870329,
+  "context_recall": 0.91,
+  "time": "205.6s"
+}

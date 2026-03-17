@@ -1,0 +1,11 @@
+{
+  "name": "Dense_Qwen3-Embedding-0.6B",
+  "method": "Dense",
+  "model": "Qwen/Qwen3-Embedding-0.6B",
+  "reranker": "",
+  "n_queries": 519,
+  "top_k": 10,
+  "context_precision": 0.9629772957923732,
+  "context_recall": 0.9400178498444395,
+  "time": "776.3s"
+}

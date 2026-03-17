@@ -1,0 +1,11 @@
+{
+  "name": "RRF+Rerank_bge-small-zh-v1.5_bge-reranker-large",
+  "method": "RRF+Rerank",
+  "model": "BAAI/bge-small-zh-v1.5",
+  "reranker": "BAAI/bge-reranker-large",
+  "n_queries": 519,
+  "top_k": 10,
+  "context_precision": 0.9685247715085197,
+  "context_recall": 0.9313048597730679,
+  "time": "801.8s"
+}

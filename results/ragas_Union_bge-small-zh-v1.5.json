@@ -1,0 +1,11 @@
+{
+  "name": "Union_bge-small-zh-v1.5",
+  "method": "Union",
+  "model": "BAAI/bge-small-zh-v1.5",
+  "reranker": "",
+  "n_queries": 519,
+  "top_k": 10,
+  "context_precision": 0.9421852148478629,
+  "context_recall": 0.9290569471205309,
+  "time": "772.5s"
+}

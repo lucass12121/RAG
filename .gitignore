@@ -1,0 +1,43 @@
+# Windows 特殊文件
+nul
+
+# Claude
+CLAUDE.md
+.claude/
+
+# 环境和缓存
+.env
+__pycache__/
+*.pyc
+.idea/
+.claude/
+
+# 模型权重（太大，不上传）
+models/*/adapter_model.safetensors
+models/*/optimizer.pt
+models/*/training_args.bin
+
+# 索引文件（可重建）
+data/index/
+data/processed/
+
+# 大数据文件（>50MB）
+data/sft_all_90k.json
+data/sft_all_90k_expanded.json
+data/expand_progress.json
+data/dpo_checkpoint.json
+data/raw/legal_article/index.faiss
+data/raw/legal_article/index.pkl
+data/raw/legal_book/legal_book/index.faiss
+data/raw/legal_book/legal_book/index.pkl
+*.faiss
+*.pkl
+
+# 临时文件
+temp_extract/
+
+# 压缩包
+*.tar.gz
+
+# 推理结果原始文件（太大）
+results/inference_*.json

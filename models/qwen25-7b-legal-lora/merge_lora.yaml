@@ -1,0 +1,9 @@
+### Merge LoRA into base model
+model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+adapter_name_or_path: /workspace/saves/qwen25-7b-legal-lora
+template: qwen
+finetuning_type: lora
+export_dir: /workspace/models/qwen25-7b-legal-merged
+export_size: 5
+export_device: cpu
+export_legacy_format: false

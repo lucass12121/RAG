@@ -1,0 +1,64 @@
+[
+  {
+    "file": "inference_Qwen2.5-3B-Instruct_noRAG.json",
+    "config": {
+      "llm_model": "Qwen/Qwen2.5-3B-Instruct",
+      "retrieval_method": "RRF+Rerank",
+      "use_rag": false,
+      "sample_n": 519,
+      "top_k": 5
+    },
+    "scores": {
+      "precision": 0.9056,
+      "answer_relevancy": 0.3363,
+      "answer_similarity": 0.9258
+    }
+  },
+  {
+    "file": "inference_Qwen2.5-3B-Instruct_RAG_RRF+Rerank.json",
+    "config": {
+      "llm_model": "Qwen/Qwen2.5-3B-Instruct",
+      "retrieval_method": "RRF+Rerank",
+      "use_rag": true,
+      "sample_n": 519,
+      "top_k": 5
+    },
+    "scores": {
+      "precision": 0.9461,
+      "answer_relevancy": 0.6822,
+      "faithfulness": 0.8297,
+      "answer_similarity": 0.9441
+    }
+  },
+  {
+    "file": "inference_Qwen2.5-7B-Instruct_noRAG.json",
+    "config": {
+      "llm_model": "Qwen/Qwen2.5-7B-Instruct",
+      "retrieval_method": "RRF+Rerank",
+      "use_rag": false,
+      "sample_n": 519,
+      "top_k": 5
+    },
+    "scores": {
+      "precision": 0.948,
+      "answer_relevancy": 0.5083,
+      "answer_similarity": 0.9278
+    }
+  },
+  {
+    "file": "inference_Qwen2.5-7B-Instruct_RAG_RRF+Rerank.json",
+    "config": {
+      "llm_model": "Qwen/Qwen2.5-7B-Instruct",
+      "retrieval_method": "RRF+Rerank",
+      "use_rag": true,
+      "sample_n": 519,
+      "top_k": 5
+    },
+    "scores": {
+      "precision": 0.9653,
+      "answer_relevancy": 0.7323,
+      "faithfulness": 0.8563,
+      "answer_similarity": 0.9483
+    }
+  }
+]

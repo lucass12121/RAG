@@ -1,0 +1,86 @@
+{
+  "model_tag": "0.5bv5",
+  "gt_file": "../origndata/prediction.jsonl",
+  "pred_file": "../inference/out_v5.jsonl",
+  "total_gt": 2000,
+  "aligned": 2000,
+  "missing": 0,
+  "correct": 1355,
+  "wrong": 645,
+  "accuracy": 0.6775,
+  "confusion_matrix": {
+    "labels": [
+      "法律类",
+      "违规类",
+      "闲聊类"
+    ],
+    "matrix": [
+      [
+        488,
+        309,
+        203
+      ],
+      [
+        3,
+        374,
+        123
+      ],
+      [
+        1,
+        6,
+        493
+      ]
+    ]
+  },
+  "per_class_counts": {
+    "法律类": {
+      "TP": 488,
+      "FP": 4,
+      "FN": 512,
+      "TN": 996
+    },
+    "违规类": {
+      "TP": 374,
+      "FP": 315,
+      "FN": 126,
+      "TN": 1185
+    },
+    "闲聊类": {
+      "TP": 493,
+      "FP": 326,
+      "FN": 7,
+      "TN": 1174
+    }
+  },
+  "per_class_metrics": {
+    "法律类": {
+      "precision": 0.991869918699187,
+      "recall": 0.488,
+      "f1": 0.6541554959785523,
+      "support": 1000
+    },
+    "违规类": {
+      "precision": 0.5428156748911466,
+      "recall": 0.748,
+      "f1": 0.6291000841042893,
+      "support": 500
+    },
+    "闲聊类": {
+      "precision": 0.6019536019536019,
+      "recall": 0.986,
+      "f1": 0.7475360121304018,
+      "support": 500
+    }
+  },
+  "macro": {
+    "precision": 0.7122130651813118,
+    "recall": 0.7406666666666667,
+    "f1": 0.6769305307377479
+  },
+  "weighted": {
+    "precision": 0.7821272785607807,
+    "recall": 0.6775,
+    "f1": 0.671236772047949
+  },
+  "classification_report": "              precision    recall  f1-score   support\n\n         法律类     0.9919    0.4880    0.6542      1000\n         违规类     0.5428    0.7480    0.6291       500\n         闲聊类     0.6020    0.9860    0.7475       500\n\n    accuracy                         0.6775      2000\n   macro avg     0.7122    0.7407    0.6769      2000\nweighted avg     0.7821    0.6775    0.6712      2000\n"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "RRF_bge-small-zh-v1.5",
+  "method": "RRF",
+  "model": "BAAI/bge-small-zh-v1.5",
+  "reranker": "",
+  "n_queries": 519,
+  "top_k": 10,
+  "context_precision": 0.9121534216046326,
+  "context_recall": 0.9247056304859773,
+  "time": "863.6s"
+}

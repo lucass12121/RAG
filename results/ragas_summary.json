@@ -1,0 +1,122 @@
+[
+  {
+    "name": "BM25",
+    "n_queries": 50,
+    "top_k": 10,
+    "context_precision": 0.8742148840870329,
+    "context_recall": 0.91,
+    "time": "205.6s"
+  },
+  {
+    "name": "BM25_bge-small-zh-v1.5",
+    "method": "BM25",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": 0.8689481677312143,
+    "context_recall": 0.8599290430128752,
+    "time": "6939.1s"
+  },
+  {
+    "name": "Dense",
+    "n_queries": 50,
+    "top_k": 10,
+    "context_precision": 0.9150409737861582,
+    "context_recall": 0.96,
+    "time": "216.7s"
+  },
+  {
+    "name": "Dense_Qwen3-Embedding-0.6B",
+    "method": "Dense",
+    "model": "Qwen/Qwen3-Embedding-0.6B",
+    "reranker": "",
+    "n_queries": 50,
+    "top_k": 10,
+    "context_precision": 0.9603738189613367,
+    "context_recall": 0.9620000000000001,
+    "time": "252.7s"
+  },
+  {
+    "name": "Dense_bge-large-zh-v1.5",
+    "method": "Dense",
+    "model": "BAAI/bge-large-zh-v1.5",
+    "reranker": "",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9414137326318628,
+    "time": "9136.9s"
+  },
+  {
+    "name": "Dense_bge-small-zh-v1.5",
+    "method": "Dense",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9236945962355799,
+    "time": "8878.4s"
+  },
+  {
+    "name": "RRF+Rerank_bge-small-zh-v1.5_bge-reranker-large",
+    "method": "RRF+Rerank",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "BAAI/bge-reranker-large",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9337064997634104,
+    "time": "9019.0s"
+  },
+  {
+    "name": "RRF+Rerank_bge-small-zh-v1.5_bge-reranker-v2-m3",
+    "method": "RRF+Rerank",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9349649669131959,
+    "time": "8919.0s"
+  },
+  {
+    "name": "RRF",
+    "n_queries": 50,
+    "top_k": 10,
+    "context_precision": 0.9112244834844121,
+    "context_recall": 0.9633333333333334,
+    "time": "150.8s"
+  },
+  {
+    "name": "RRF_bge-small-zh-v1.5",
+    "method": "RRF",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9339981596503336,
+    "time": "9099.9s"
+  },
+  {
+    "name": "Union",
+    "n_queries": 50,
+    "top_k": 10,
+    "context_precision": 0.9043449861314824,
+    "context_recall": 0.9480000000000001,
+    "time": "195.7s"
+  },
+  {
+    "name": "Union_bge-small-zh-v1.5",
+    "method": "Union",
+    "model": "BAAI/bge-small-zh-v1.5",
+    "reranker": "",
+    "n_queries": 519,
+    "top_k": 10,
+    "context_precision": NaN,
+    "context_recall": 0.9395697926338594,
+    "time": "9076.8s"
+  }
+]

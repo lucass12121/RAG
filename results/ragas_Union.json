@@ -1,0 +1,8 @@
+{
+  "name": "Union",
+  "n_queries": 50,
+  "top_k": 10,
+  "context_precision": 0.9043449861314824,
+  "context_recall": 0.9480000000000001,
+  "time": "195.7s"
+}

@@ -1,0 +1,29 @@
+### LoRA SFT v2 — 扩写后数据集 (OOM fix)
+model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 64
+lora_alpha: 128
+lora_dropout: 0.05
+lora_target: all
+
+dataset: sft_legal_90k_expanded
+template: qwen
+cutoff_len: 1024
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+gradient_checkpointing: true
+learning_rate: 1.0e-4
+num_train_epochs: 2
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+
+logging_steps: 50
+save_steps: 500
+save_total_limit: 3
+output_dir: /workspace/saves/qwen25-7b-legal-lora-v2
+overwrite_output_dir: true
+report_to: none

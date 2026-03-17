@@ -1,0 +1,404 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\title{\textbf{基于RAG的法律领域问答系统实验报告}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\section{数据集准备}
+% ============================================================
+
+本实验的数据集分为两部分：用于构建检索知识库的\textbf{法律文档语料库}，以及用于评测系统性能的\textbf{法律问答测试集}。
+
+% ------------------------------------------------------------
+\subsection{法律文档语料库}
+% ------------------------------------------------------------
+
+知识库语料来源于4个公开法律数据集，涵盖法律条文、法条解释、法律教材和法律问答，具体如表~\ref{tab:corpus}所示。
+
+\begin{table}[H]
+\centering
+\caption{知识库语料来源}
+\label{tab:corpus}
+\begin{tabular}{llll}
+\toprule
+\textbf{数据源} & \textbf{格式} & \textbf{内容类型} & \textbf{说明} \\
+\midrule
+Law-Book         & Markdown    & 法律条文   & 民法典、刑法、宪法等现行法律全文 \\
+legal\_article   & JSON Lines  & 法条释义   & 法条的输入问题与对应解答 \\
+legal\_book      & TXT         & 法律教材   & 法学专业教材章节内容 \\
+lawzhidao        & CSV         & 法律问答   & 百度法律知道的真实用户问答 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{数据预处理}
+
+原始数据格式各异，首先进行统一的格式转换：对 Markdown 文件去除标记符号（标题符、加粗、链接等）保留纯文本；对 JSON Lines 提取问答文本拼接；对 TXT 教材处理编码兼容性问题（支持 UTF-8、GBK、GB18030）；对 CSV 问答数据提取标题、问题和回复字段。
+
+\subsubsection{递归分块策略}
+
+法律文本具有严格的层次结构（编$\rightarrow$章$\rightarrow$节$\rightarrow$条），直接按固定长度切分会破坏语义完整性。本实验设计了多层递归分块策略，按照法律文本的天然结构逐层拆分：
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{第1层}：按"编"切分（正则匹配"第X编"）
+    \item \textbf{第2层}：按"章"切分（正则匹配"第X章"）
+    \item \textbf{第3层}：按"节"切分（正则匹配"第X节"）
+    \item \textbf{第4层}：按"条"切分（正则匹配"第X条"），每条作为独立语义单元
+    \item \textbf{第5层}：若单条仍超过阈值，按句子边界（句号、分号）进一步切分
+\end{enumerate}
+
+每个 chunk 的最大长度设为 512 字符。分块过程中保留结构元数据（所属编/章/节路径），纯结构标题（如"第一章\ 总纲"）不单独入库，其信息已编码在 section 字段中。对于法律教材类文本，前4层结构相同，第5层改为按段落合并后切分。对于法律问答数据，每条问答本身即为自然语义单元，仅对超长回答按句子切分。
+
+最终得到 \textbf{116,797 个 chunks}，统计信息如表~\ref{tab:chunk_stats}所示。
+
+\begin{table}[H]
+\centering
+\caption{分块统计}
+\label{tab:chunk_stats}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{数据源} & \textbf{chunks 数量} & \textbf{最大长度} & \textbf{平均长度} \\
+\midrule
+法律条文 (Law-Book)     & \multicolumn{3}{c}{\multirow{4}{*}{总计 116,797 个 chunks，每个 $\leq$ 512 字符}} \\
+法条释义 (legal\_article) & & & \\
+法律教材 (legal\_book)    & & & \\
+法律问答 (lawzhidao)      & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------
+\subsection{法律问答测试集构建}
+% ------------------------------------------------------------
+
+测试集共 \textbf{519 条}法律问答对，由问答数据集抽样（250条）和合成数据集生成（350条）两部分经清洗后合并而成。构建流程如图~\ref{fig:testset_flow}所示。
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.85\textwidth}{\centering
+\small
+lawzhidao (is\_best=1) $\xrightarrow{\text{随机抽样 250 条}}$ 问答子集 \\[4pt]
+Law-Book + legal\_book $\xrightarrow{\text{抽样 350 段法条}}$ $\xrightarrow{\text{GPT-4o 生成问答}}$ 合成子集 \\[4pt]
+问答子集 + 合成子集 $\xrightarrow{\text{合并混洗}}$ $\xrightarrow{\text{GPT-4o-mini 质量评分}}$ $\xrightarrow{\text{阈值筛选}}$ \textbf{519 条测试集}
+}}
+\caption{测试集构建流程}
+\label{fig:testset_flow}
+\end{figure}
+
+\subsubsection{问答数据集抽样（250条）}
+
+从 lawzhidao\_filter.csv 中筛选被标记为最佳回答（is\_best=1）的高质量问答对，以固定随机种子（seed=42）随机抽样 250 条，确保实验可复现。抽样后清空原始的补充问题字段，仅保留标题（作为 question）和回复（作为 reply）。
+
+\subsubsection{合成数据集生成（350条）}
+
+合成数据采用 Self-Instruct 方式构建，具体步骤如下：
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{法条段落采样}：从 Law-Book（Markdown 法律条文）按"第X条"切分后抽样 250 段，从 legal\_book（TXT 法律教材）按段落切分后抽样 100 段，共计 350 段法律文本。
+
+    \item \textbf{LLM 问答对生成}：将每段法条文本作为输入，调用 GPT-4o 模型生成对应的口语化问答对。Prompt 要求模型扮演法律助理角色，基于法条内容生成三个字段：概括性标题（title）、用户可能提出的口语化问题（question）、基于法条的完整回答（reply）。生成温度设为 0.6 以平衡多样性与准确性。
+\end{enumerate}
+
+\subsubsection{数据合并与质量筛选}
+
+将 250 条问答数据与 350 条合成数据合并，经过以下清洗步骤：
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{基础清洗}：去除含星号等异常字符的数据，去除空值和重复项，过滤问题长度 $<$ 4 字或回答长度 $<$ 10 字的低质量条目。
+
+    \item \textbf{LLM 质量评分}：调用 GPT-4o-mini 对每条问答数据进行 1--10 分的质量评分，评分维度包括：
+    \begin{itemize}[leftmargin=1.5em]
+        \item 问题清晰度（2分）：问题是否表述清楚、有实际意义
+        \item 回答准确性（3分）：回答是否准确、专业、有法律依据
+        \item 回答完整性（2分）：回答是否充分回应了问题
+        \item 回答实用性（2分）：回答对提问者是否有实际帮助
+        \item 格式规范性（1分）：无明显乱码、重复、格式错误
+    \end{itemize}
+    每 5 条为一批次发送评分请求，以降低 API 调用成本。
+
+    \item \textbf{阈值筛选}：按评分降序排列，动态确定分数阈值以确保保留不少于 500 条数据。最终通过筛选得到 \textbf{519 条}高质量法律问答测试集。
+\end{enumerate}
+
+测试集中每条数据包含 question（法律问题）和 reply（参考答案）两个字段，示例如表~\ref{tab:testset_example}所示。
+
+\begin{table}[H]
+\centering
+\caption{测试集示例}
+\label{tab:testset_example}
+\begin{tabular}{p{4cm}p{9cm}}
+\toprule
+\textbf{字段} & \textbf{内容} \\
+\midrule
+question & 在中国，哪个部门负责监督管理职业病防治的工作？ \\
+\midrule
+reply & 在中国，职业病防治的监督管理由多个部门负责。国家层面，由国务院卫生行政部门和劳动保障行政部门负责全国的监督管理工作。地方层面，县级以上地方政府的卫生和劳动保障行政部门负责本地区的监督管理…… \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{向量库构建与检索}
+% ============================================================
+
+本节介绍知识库的向量化存储与检索模块的构建，包括稠密向量检索（FAISS）和稀疏关键词检索（BM25）两条独立路径，以及双路结果的合并策略。
+
+% ------------------------------------------------------------
+\subsection{向量库构建（FAISS）}
+% ------------------------------------------------------------
+
+采用 FAISS（Facebook AI Similarity Search）构建稠密向量索引。具体流程为：
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{向量编码}：使用 Sentence-Transformers 框架加载预训练 Embedding 模型，对 116,797 个 chunks 的文本逐批编码为固定维度的稠密向量，并进行 L2 归一化。
+    \item \textbf{索引构建}：使用 FAISS 的 \texttt{IndexFlatIP}（内积索引）存储所有向量。由于已做 L2 归一化，内积等价于余弦相似度。
+    \item \textbf{持久化}：将 FAISS 索引和 chunk 元数据分别保存到磁盘，支持快速加载。
+\end{enumerate}
+
+本实验对比了三种 Embedding 模型，如表~\ref{tab:embed_models}所示。
+
+\begin{table}[H]
+\centering
+\caption{向量化模型}
+\label{tab:embed_models}
+\begin{tabular}{llll}
+\toprule
+\textbf{模型} & \textbf{维度} & \textbf{参数量} & \textbf{来源} \\
+\midrule
+BAAI/bge-small-zh-v1.5  & 512  & 24M  & 智源 BGE 系列 \\
+BAAI/bge-large-zh-v1.5  & 1024 & 326M & 智源 BGE 系列 \\
+Qwen/Qwen3-Embedding-0.6B & 1024 & 600M & 通义千问系列 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------
+\subsection{BM25 稀疏检索}
+% ------------------------------------------------------------
+
+BM25 检索与 FAISS 完全独立，不依赖向量数据库，而是基于词频统计的经典信息检索算法。具体实现为：
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{中文分词}：使用 jieba 对每个 chunk 文本进行分词，过滤长度 $\leq$ 1 的单字符词。
+    \item \textbf{索引构建}：将分词后的语料传入 \texttt{rank\_bm25} 库的 \texttt{BM25Okapi} 类构建倒排索引，纯内存计算。
+    \item \textbf{持久化}：通过 Python pickle 序列化保存 BM25 索引和分词结果到磁盘。
+\end{enumerate}
+
+BM25 擅长精确关键词匹配（如法律条款编号、专有名词），与 Dense 检索的语义泛化能力形成互补。
+
+% ------------------------------------------------------------
+\subsection{双路召回与合并策略}
+% ------------------------------------------------------------
+
+系统采用 Dense + BM25 双路并行召回，分别取 Top-$K$ 结果后通过合并策略融合。本实验对比了两种合并策略：
+
+\subsubsection{策略一：Union 并集去重}
+
+将 Dense Top-$K$ 和 BM25 Top-$K$ 取并集，按 chunk\_id 去重（重复文档保留 Dense 路的结果），按原始排名顺序排列后截取 Top-$N$。该策略简单直接，保证两路结果都有机会进入最终候选集。
+
+\subsubsection{策略二：RRF 加权融合排序}
+
+采用 Reciprocal Rank Fusion（RRF）算法，仅利用排名信息进行融合，公式为：
+\begin{equation}
+\text{score}(d) = \sum_{i} \frac{w_i}{k + \text{rank}_i(d)}
+\end{equation}
+其中 $k=60$ 为平滑常数，$w_i$ 为各路权重（本实验中 Dense 和 BM25 权重均为 0.5）。RRF 的优势在于不依赖原始分数的尺度差异（Dense 为 0$\sim$1，BM25 为 0$\sim \infty$），天然实现归一化。
+
+% ------------------------------------------------------------
+\subsection{Reranker 重排序}
+% ------------------------------------------------------------
+
+在双路召回与融合之后，引入交叉编码器（Cross-Encoder）对候选文档进行重排序。与 Embedding 模型的双塔架构不同，Cross-Encoder 将 query 和 document 拼接后联合编码，能捕捉更细粒度的语义交互。
+
+本实验对比了两个 Reranker 模型：
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{BAAI/bge-reranker-v2-m3}：多语言重排模型，支持中英文
+    \item \textbf{BAAI/bge-reranker-large}：大参数量中文重排模型
+\end{itemize}
+
+重排流程为：先通过 RRF 融合得到 Top-20 候选，再用 Reranker 对每个 (query, document) 对计算相关性分数，按分数重新排序后取 Top-$K$。
+
+% ============================================================
+\section{检索评测}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{评测方法}
+% ------------------------------------------------------------
+
+采用 RAGAS（Retrieval Augmented Generation Assessment）框架进行检索质量评测，使用 OpenAI GPT-4o-mini 作为评测 LLM。评测在全部 519 条测试集上进行，Top-$K$ 设为 10。核心指标为：
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Context Precision}：检索结果中与问题相关的文档排在前面的程度，衡量检索的精确性。
+    \item \textbf{Context Recall}：参考答案中的关键信息被检索结果覆盖的比例，衡量检索的完整性。
+\end{itemize}
+
+% ------------------------------------------------------------
+\subsection{单路 vs 双路召回对比}
+% ------------------------------------------------------------
+
+以 BGE-small-zh-v1.5 作为向量化模型，对比四种检索策略的效果，如表~\ref{tab:retrieval_compare}所示。
+
+\begin{table}[H]
+\centering
+\caption{单路 vs 双路召回对比（519 样本，Top-10）}
+\label{tab:retrieval_compare}
+\begin{tabular}{lcc}
+\toprule
+\textbf{检索策略} & \textbf{Context Precision} & \textbf{Context Recall} \\
+\midrule
+Dense（向量检索）      & 0.9385 & 0.9307 \\
+BM25（稀疏检索）       & 0.8689 & 0.8599 \\
+Union（并集去重）      & 0.9422 & 0.9291 \\
+RRF（加权融合）        & 0.9122 & 0.9247 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+分析：Dense 单路检索的 Precision 和 Recall 均优于 BM25，说明语义向量检索在法律问答场景下整体表现更好。Union 并集策略在 Precision 上略优于 Dense 单路（0.9422 vs 0.9385），但提升有限。RRF 融合的 Precision 略低于 Dense 单路，但 Recall 接近，说明融合排序更均衡。
+
+% ------------------------------------------------------------
+\subsection{向量化模型对比}
+% ------------------------------------------------------------
+
+固定 Dense 单路检索策略，对比三种 Embedding 模型的检索效果，如表~\ref{tab:model_compare}所示。
+
+\begin{table}[H]
+\centering
+\caption{向量化模型对比（Dense 检索，519 样本，Top-10）}
+\label{tab:model_compare}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Embedding 模型} & \textbf{Context Precision} & \textbf{Context Recall} \\
+\midrule
+BGE-small-zh-v1.5 (24M)     & 0.9385 & 0.9307 \\
+BGE-large-zh-v1.5 (326M)    & 0.9641 & 0.9319 \\
+Qwen3-Embedding-0.6B (600M) & 0.9630 & 0.9400 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+分析：BGE-large 和 Qwen3-Embedding 的 Precision 非常接近（0.9641 vs 0.9630），均显著优于 BGE-small（+2.5 个百分点）。Qwen3-Embedding 在 Recall 上略优（0.9400），但参数量是 BGE-large 的近两倍。综合性能与效率，BGE-large 和 Qwen3-Embedding 均为优选。
+
+% ------------------------------------------------------------
+\subsection{Reranker 重排效果}
+% ------------------------------------------------------------
+
+在 RRF 融合基础上加入 Reranker 重排，结果如表~\ref{tab:reranker_compare}所示。
+
+\begin{table}[H]
+\centering
+\caption{Reranker 重排效果（RRF + Rerank，519 样本，Top-10）}
+\label{tab:reranker_compare}
+\begin{tabular}{lcc}
+\toprule
+\textbf{配置} & \textbf{Context Precision} & \textbf{Context Recall} \\
+\midrule
+RRF（无 Rerank）                  & 0.9122 & 0.9247 \\
+RRF + bge-reranker-v2-m3          & \textbf{0.9746} & 0.9354 \\
+RRF + bge-reranker-large          & 0.9685 & 0.9313 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+分析：Reranker 对检索精度的提升非常显著。bge-reranker-v2-m3 将 Precision 从 0.9122 提升至 \textbf{0.9746}（+6.2 个百分点），为全部实验中的最高值。这表明 Cross-Encoder 的联合编码能力能有效过滤低质量候选文档，将最相关的文档排到前列。
+
+% ------------------------------------------------------------
+\subsection{检索评测总结}
+% ------------------------------------------------------------
+
+综合以上实验，最优检索配置为 \textbf{RRF 融合 + bge-reranker-v2-m3 重排}，Context Precision 达到 0.9746，Context Recall 达到 0.9354。该配置被用于后续 RAG 推理实验中的检索模块。
+
+% ============================================================
+\section{RAG 推理评测}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{实验设置}
+% ------------------------------------------------------------
+
+使用 Qwen2.5-3B-Instruct 和 Qwen2.5-7B-Instruct 两个规模的本地部署 LLM 进行推理实验。每个模型分别在有 RAG（检索增强）和无 RAG（纯模型生成）两种设置下运行，共4组实验，均使用全部 519 条测试集。
+
+RAG 配置：检索策略为 RRF + bge-reranker-v2-m3 重排，检索 Top-5 文档作为上下文输入 LLM。
+
+% ------------------------------------------------------------
+\subsection{评测指标}
+% ------------------------------------------------------------
+
+推理评测采用三类互补指标：
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Precision（语义一致性准确率）}：调用 GPT-4o-mini 对每条回答进行二元判断——模型回答与标准答案的核心结论方向是否一致。只要结论方向相同（如都认为"违法"、都指向相同的法律后果），即使引用不同法条或详略不同，均判为"一致"。
+    \item \textbf{Answer Relevancy（回答相关性）}：RAGAS 框架的 LLM 评分指标，衡量回答与问题的相关程度。
+    \item \textbf{Answer Similarity（语义相似度）}：RAGAS 框架基于 Embedding 余弦相似度计算回答与参考答案的语义距离。
+    \item \textbf{Faithfulness（忠实度）}：仅在 RAG 模式下评测，衡量回答内容是否忠实于检索到的上下文文档，避免模型产生幻觉。
+\end{itemize}
+
+% ------------------------------------------------------------
+\subsection{实验结果}
+% ------------------------------------------------------------
+
+四组实验的完整评测结果如表~\ref{tab:inference_results}所示。
+
+\begin{table}[H]
+\centering
+\caption{RAG 推理评测结果（519 样本）}
+\label{tab:inference_results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{配置} & \textbf{Precision} & \textbf{Relevancy} & \textbf{Similarity} & \textbf{Faithfulness} \\
+\midrule
+Qwen2.5-3B + 无RAG & 0.8247 & 0.3512 & 0.9249 & -- \\
+Qwen2.5-3B + RAG   & 0.9345 & 0.6722 & 0.9441 & 0.8328 \\
+Qwen2.5-7B + 无RAG & 0.9171 & 0.4984 & 0.9278 & -- \\
+Qwen2.5-7B + RAG   & \textbf{0.9557} & \textbf{0.7066} & \textbf{0.9485} & 0.8560 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------
+\subsection{结果分析}
+% ------------------------------------------------------------
+
+\subsubsection{RAG 的增强效果}
+
+RAG 对回答相关性（Relevancy）的提升最为显著：3B 模型从 0.3512 提升至 0.6722（+91.4\%），7B 模型从 0.4984 提升至 0.7066（+41.8\%）。这说明检索到的法律文档为 LLM 提供了关键的事实依据，使回答更加切题。Precision 同样有明显提升，3B 从 0.8247 到 0.9345（+13.3\%），7B 从 0.9171 到 0.9557（+4.2\%），表明 RAG 帮助模型给出方向更准确的回答。
+
+\subsubsection{模型规模的影响}
+
+7B 模型在所有指标上均优于 3B 模型。尤其在无 RAG 的情况下，7B 的 Precision（0.9171）高于 3B（0.8247），Relevancy（0.4984）也高于 3B（0.3512），说明更大的模型具有更强的法律知识记忆和表达能力。
+
+\subsubsection{Similarity 指标的局限性}
+
+Answer Similarity 在所有配置下均高于 0.92，区分度较低。这是因为 Embedding 余弦相似度对语义方向敏感度不足——即使回答方向错误，只要涉及相同领域的法律术语，相似度仍然较高。因此 Precision 和 Relevancy 是更有效的评测指标。
+
+\subsubsection{Faithfulness 分析}
+
+RAG 模式下两个模型的 Faithfulness 均在 0.83 以上，说明模型能较好地基于检索文档进行回答，幻觉问题相对可控。7B 模型略优于 3B（0.8560 vs 0.8328），较大模型在遵循上下文方面更为可靠。
+
+\end{document}

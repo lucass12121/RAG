@@ -1,0 +1,15 @@
+{
+  "file": "inference_Qwen2.5-7B-Base_noRAG.json",
+  "config": {
+    "use_rag": false,
+    "llm_model": "Qwen2.5-7B-Base",
+    "retrieval_method": "N/A",
+    "sample_n": 519,
+    "top_k": 0
+  },
+  "scores": {
+    "precision": 0.8767,
+    "answer_relevancy": 0.5111,
+    "answer_similarity": 0.9241
+  }
+}
